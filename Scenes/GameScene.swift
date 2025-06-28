@@ -12,6 +12,14 @@ class GameScene: SKScene {
     private let enemyCategory: UInt32 = 0x1 << 1
     private let laserCategory: UInt32 = 0x1 << 2
     
+    // MARK: - Boss Properties
+    private var bossAI: BossAI?
+    private var bossPhaseManager: BossPhaseManager?
+    private var bossNode: SKSpriteNode?
+    private var phaseIndicator: SKLabelNode?
+    private var healthBar: SKShapeNode?
+    private var healthFill: SKShapeNode?
+    
     // MARK: - Scene Setup
     override func didMove(to view: SKView) {
         setupPhysicsWorld()
@@ -56,6 +64,94 @@ class GameScene: SKScene {
         }
         pauseButton.position = CGPoint(x: frame.maxX - 70, y: frame.maxY - 30)
         addChild(pauseButton)
+    }
+    
+    // MARK: - Boss Setup
+    private func setupBoss(_ type: BossType) {
+        // Create boss node
+        bossNode = SKSpriteNode(imageNamed: "\(type)_boss")
+        bossNode?.position = CGPoint(x: frame.midX, y: frame.maxY - 200)
+        bossNode?.zPosition = 2
+        bossNode?.setScale(2.0)
+        addChild(bossNode!)
+        
+        // Initialize boss AI
+        bossAI = BossAI(type: type, health: 1000, phaseCount: 3)
+        
+        // Initialize phase manager
+        bossPhaseManager = BossPhaseManager(bossAI: bossAI!, scene: self)
+        
+        // Setup health bar
+        setupHealthBar()
+        
+        // Setup phase indicator
+        setupPhaseIndicator()
+        
+        // Start boss battle
+        startBossBattle()
+    }
+    
+    private func setupHealthBar() {
+        // Create health bar background
+        healthBar = SKShapeNode(rectOf: CGSize(width: 200, height: 20))
+        healthBar?.fillColor = .darkGray
+        healthBar?.strokeColor = .white
+        healthBar?.position = CGPoint(x: frame.midX, y: frame.maxY - 50)
+        healthBar?.zPosition = 3
+        addChild(healthBar!)
+        
+        // Create health fill
+        healthFill = SKShapeNode(rectOf: CGSize(width: 200, height: 20))
+        healthFill?.fillColor = .green
+        healthFill?.strokeColor = .clear
+        healthFill?.position = CGPoint(x: frame.midX, y: frame.maxY - 50)
+        healthFill?.zPosition = 4
+        addChild(healthFill!)
+    }
+    
+    private func setupPhaseIndicator() {
+        phaseIndicator = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        phaseIndicator?.fontSize = 24
+        phaseIndicator?.fontColor = .white
+        phaseIndicator?.position = CGPoint(x: frame.midX, y: frame.maxY - 80)
+        phaseIndicator?.zPosition = 3
+        phaseIndicator?.alpha = 0
+        addChild(phaseIndicator!)
+    }
+    
+    private func startBossBattle() {
+        // Show boss introduction
+        let introSequence = SKAction.sequence([
+            SKAction.fadeIn(withDuration: 1.0),
+            SKAction.scale(to: 1.0, duration: 0.5),
+            SKAction.run { [weak self] in
+                self?.showBossName()
+            }
+        ])
+        
+        bossNode?.run(introSequence)
+    }
+    
+    private func showBossName() {
+        guard let bossAI = bossAI else { return }
+        
+        let nameLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        nameLabel.text = bossAI.name
+        nameLabel.fontSize = 32
+        nameLabel.fontColor = .white
+        nameLabel.position = CGPoint(x: frame.midX, y: frame.maxY - 120)
+        nameLabel.zPosition = 3
+        nameLabel.alpha = 0
+        addChild(nameLabel)
+        
+        let nameSequence = SKAction.sequence([
+            SKAction.fadeIn(withDuration: 0.5),
+            SKAction.wait(forDuration: 2.0),
+            SKAction.fadeOut(withDuration: 0.5),
+            SKAction.removeFromParent()
+        ])
+        
+        nameLabel.run(nameSequence)
     }
     
     // MARK: - Game Logic
@@ -103,6 +199,41 @@ class GameScene: SKScene {
         let moveUp = SKAction.moveBy(x: 0, y: frame.height, duration: 1.0)
         let remove = SKAction.removeFromParent()
         laser.run(SKAction.sequence([moveUp, remove]))
+    }
+    
+    // MARK: - Update
+    override func update(_ currentTime: TimeInterval) {
+        // Update boss AI
+        if let bossAI = bossAI, let bossNode = bossNode {
+            bossAI.update(deltaTime: 1/60, bossNode: bossNode, scene: self)
+            updateBossHealth()
+        }
+    }
+    
+    private func updateBossHealth() {
+        guard let bossAI = bossAI, let healthFill = healthFill else { return }
+        
+        let healthPercentage = bossAI.health / bossAI.maxHealth
+        let newWidth = 200 * CGFloat(healthPercentage)
+        
+        let resizeAction = SKAction.resize(toWidth: newWidth, duration: 0.2)
+        healthFill.run(resizeAction)
+        
+        // Update health bar color based on percentage
+        let colorAction = SKAction.colorize(
+            with: healthColor(for: healthPercentage),
+            colorBlendFactor: 1.0,
+            duration: 0.2
+        )
+        healthFill.run(colorAction)
+    }
+    
+    private func healthColor(for percentage: Double) -> SKColor {
+        switch percentage {
+        case 0.7...: return .green
+        case 0.3..<0.7: return .yellow
+        default: return .red
+        }
     }
     
     // MARK: - Game Reset
@@ -158,5 +289,116 @@ extension GameScene: SKPhysicsContactDelegate {
             // Handle player-enemy collision
             GameManager.shared.transition(to: .gameOver, in: self)
         }
+        
+        // Handle boss damage
+        if let bossNode = bossNode,
+           (contact.bodyA.node == bossNode || contact.bodyB.node == bossNode),
+           let projectile = (contact.bodyA.node?.name == "playerProjectile" ? contact.bodyA.node : contact.bodyB.node) as? SKSpriteNode {
+            
+            // Apply damage to boss
+            bossAI?.health -= 10
+            
+            // Create hit effect
+            createHitEffect(at: projectile.position)
+            
+            // Remove projectile
+            projectile.removeFromParent()
+            
+            // Check for boss defeat
+            if bossAI?.health ?? 0 <= 0 {
+                handleBossDefeat()
+            }
+        }
+    }
+    
+    private func createHitEffect(at position: CGPoint) {
+        if let hitEmitter = SKEmitterNode(fileNamed: "BossHit") {
+            hitEmitter.position = position
+            hitEmitter.zPosition = 2
+            addChild(hitEmitter)
+            
+            let sequence = SKAction.sequence([
+                SKAction.wait(forDuration: 0.2),
+                SKAction.removeFromParent()
+            ])
+            
+            hitEmitter.run(sequence)
+        }
+    }
+    
+    private func handleBossDefeat() {
+        guard let bossAI = bossAI else { return }
+        
+        // Create defeat sequence
+        let defeatSequence = SKAction.sequence([
+            SKAction.fadeOut(withDuration: 0.5),
+            SKAction.run { [weak self] in
+                self?.showVictoryMessage()
+                self?.unlockBossLore()
+            }
+        ])
+        
+        bossNode?.run(defeatSequence)
+    }
+    
+    private func showVictoryMessage() {
+        let victoryLabel = SKLabelNode(fontNamed: "AvenirNext-Bold")
+        victoryLabel.text = "VICTORY"
+        victoryLabel.fontSize = 48
+        victoryLabel.fontColor = .yellow
+        victoryLabel.position = CGPoint(x: frame.midX, y: frame.midY)
+        victoryLabel.zPosition = 5
+        victoryLabel.alpha = 0
+        addChild(victoryLabel)
+        
+        let victorySequence = SKAction.sequence([
+            SKAction.fadeIn(withDuration: 0.5),
+            SKAction.scale(to: 1.2, duration: 0.2),
+            SKAction.scale(to: 1.0, duration: 0.2),
+            SKAction.wait(forDuration: 2.0),
+            SKAction.fadeOut(withDuration: 0.5),
+            SKAction.run { [weak self] in
+                self?.transitionToNextLevel()
+            }
+        ])
+        
+        victoryLabel.run(victorySequence)
+    }
+    
+    private func unlockBossLore() {
+        guard let bossAI = bossAI else { return }
+        
+        // Create lore entry for each phase
+        for phase in 1...bossAI.phaseCount {
+            let loreEntry = BossLoreEntry.createForBoss(bossAI.type, phase: phase)
+            loreEntry.isUnlocked = true
+            
+            // Notify lore unlock
+            NotificationCenter.default.post(
+                name: .newLoreUnlocked,
+                object: nil,
+                userInfo: ["loreEntry": loreEntry]
+            )
+        }
+    }
+    
+    private func transitionToNextLevel() {
+        // Create transition effect
+        let transitionNode = SKSpriteNode(color: .black, size: frame.size)
+        transitionNode.position = CGPoint(x: frame.midX, y: frame.midY)
+        transitionNode.zPosition = 10
+        transitionNode.alpha = 0
+        addChild(transitionNode)
+        
+        // Animate transition
+        let transitionSequence = SKAction.sequence([
+            SKAction.fadeIn(withDuration: 1.0),
+            SKAction.run { [weak self] in
+                // Load next level
+                self?.loadNextLevel()
+            }
+        ])
+        
+        transitionNode.run(transitionSequence)
     }
 } 

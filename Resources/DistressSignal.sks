@@ -1,0 +1,40 @@
+{
+  "particleTexture" : "spark",
+  "particleBirthRate" : 100,
+  "numParticlesToEmit" : 0,
+  "lifetime" : 1.0,
+  "lifetimeRange" : 0.5,
+  "emissionAngle" : 0,
+  "emissionAngleRange" : 360,
+  "speed" : 50,
+  "speedRange" : 20,
+  "xAcceleration" : 0,
+  "yAcceleration" : 0,
+  "scale" : 0.5,
+  "scaleRange" : 0.2,
+  "scaleSpeed" : -0.2,
+  "alpha" : 1.0,
+  "alphaRange" : 0.5,
+  "alphaSpeed" : -0.5,
+  "colorBlendFactor" : 1.0,
+  "colorBlendFactorRange" : 0.0,
+  "colorBlendFactorSpeed" : 0.0,
+  "colorSequence" : {
+    "colors" : [
+      {
+        "color" : [1, 0, 0, 1],
+        "time" : 0
+      },
+      {
+        "color" : [1, 0.5, 0, 1],
+        "time" : 0.5
+      },
+      {
+        "color" : [1, 0, 0, 0],
+        "time" : 1
+      }
+    ]
+  },
+  "blendMode" : "add",
+  "targetNode" : null
+} 
