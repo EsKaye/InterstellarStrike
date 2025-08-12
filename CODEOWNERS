@@ -1,0 +1,23 @@
+# Code owners for InterstellarStrike
+# This file defines who is responsible for different parts of the codebase
+
+# Global owners
+* @EsKaye
+
+# Swift files
+*.swift @EsKaye
+
+# Xcode project files
+*.xcodeproj/ @EsKaye
+*.xcworkspace/ @EsKaye
+
+# Package manager files
+Package.swift @EsKaye
+Package.resolved @EsKaye
+
+# Documentation
+*.md @EsKaye
+docs/ @EsKaye
+
+# GitHub workflows
+.github/ @EsKaye
