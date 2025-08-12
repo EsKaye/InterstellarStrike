@@ -1,0 +1,23 @@
+name: CI
+on:
+  pull_request:
+  push:
+    branches: [ main, master ]
+permissions:
+  contents: read
+jobs:
+  swift:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build (SPM)
+        run: |
+          if [ -f Package.swift ]; then swift build -c release; fi
+      - name: Xcode build (if Xcode project)
+        run: |
+          if ls *.xcodeproj >/dev/null 2>&1; then 
+            xcodebuild -scheme "$(ls *.xcodeproj | sed 's/.xcodeproj//')" -configuration Release -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' build; 
+          fi
+      - name: Test (SPM)
+        run: |
+          if [ -f Package.swift ]; then swift test; fi
