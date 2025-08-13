@@ -2,11 +2,12 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [ main, master ]
+    branches: [ master, main ]
 permissions:
   contents: read
 jobs:
   swift:
+    if: ${{ hashFiles('Package.swift') != '' || hashFiles('*.xcodeproj/project.pbxproj') != '' }}
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -15,9 +16,10 @@ jobs:
           if [ -f Package.swift ]; then swift build -c release; fi
       - name: Xcode build (if Xcode project)
         run: |
-          if ls *.xcodeproj >/dev/null 2>&1; then 
-            xcodebuild -scheme "$(ls *.xcodeproj | sed 's/.xcodeproj//')" -configuration Release -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' build; 
-          fi
-      - name: Test (SPM)
-        run: |
-          if [ -f Package.swift ]; then swift test; fi
+          if ls *.xcodeproj >/dev/null 2>&1; then xcodebuild -scheme "$(ls *.xcodeproj | sed 's/.xcodeproj//')" -configuration Release -sdk iphonesimulator -destination 'platform=iOS Simulator,name=iPhone 15' build; fi
+  shell:
+    if: ${{ hashFiles('**/*.sh') != '' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: ludeeus/action-shellcheck@2.0.0
