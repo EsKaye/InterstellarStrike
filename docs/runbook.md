@@ -1,11 +1,21 @@
-# Runbook (Swift)
+# Runbook
 
-## Local Build
-- If SwiftPM: `swift build -c release`
-- If Xcode: open `.xcodeproj` and build scheme
+## Local Development
 
-## CI
-- macOS runner builds either SPM or Xcode project
+### Prerequisites
+- Node.js 20+
+- pnpm (if `pnpm-lock.yaml` exists)
 
-## Env/Secrets
-- None required for build-only CI
+### Setup
+```bash
+pnpm install
+```
+
+### Commands
+- `pnpm lint`: Run lint checks
+- `pnpm test`: Run tests
+- `pnpm build`: Build the project
+
+## CI/CD
+- CI workflows are triggered on pull requests and pushes to `main`.
+- Ensure all tests pass before merging.
